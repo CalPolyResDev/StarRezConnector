@@ -18,9 +18,9 @@ from .exception import ObjectDoesNotExist, MultipleObjectsReturned
 
 logger = logging.getLogger(__name__)
 
-CUSTOM_FIELD_IDS = {"GPA":"5",
-                    "MAJOR":"3",
-                    "COLLEGE":"2" }
+CUSTOM_FIELD_IDS = {"GPA": "5",
+                    "MAJOR": "3",
+                    "COLLEGE": "2"}
 
 
 def reverse_address_lookup(api_instance=None, community="", building="", room=""):
@@ -74,7 +74,7 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
         else:
             print(e)
         raise
-    
+
     """
     <Booking>
         <_relationship>or</_relationship>
@@ -88,7 +88,7 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
     room_space_ids_xml = ""
     for room in rooms:
         room_space_ids_xml = room_space_ids_xml + "<RoomSpaceID>" + str(room.room_space_id) + "</RoomSpaceID>"
-    
+
     bookings_xml = "<Booking><_relationship>or</_relationship>" + room_space_ids_xml + "</Booking>"
     bookings = None
     try:
@@ -123,7 +123,7 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
 
 
 def name_lookup(api_instance=None, first_name="", last_name=""):
-    """ Retrieve a list of residents corresponding to the passed in name parameters. 
+    """ Retrieve a list of residents corresponding to the passed in name parameters.
     The first_name parameter is checked against first name and preferred name.
 
     :param api_instance: An instance of the StarRezAPI client.
@@ -137,11 +137,10 @@ def name_lookup(api_instance=None, first_name="", last_name=""):
 
     """
 
-
     """
     The xml for this request looks like this. The _criteria field allows for the
     _relationship field to be applied to only the other fields in the _criteria.
-    The default _relationship is 'and', which is why there is only the one 
+    The default _relationship is 'and', which is why there is only the one
     _relationship field.
 
     <Entry>
@@ -155,7 +154,7 @@ def name_lookup(api_instance=None, first_name="", last_name=""):
     """
     entry_xml = ET.Element('Entry')
     criteria_xml = ET.SubElement(entry_xml, '_criteria')
-    
+
     relationship = ET.SubElement(criteria_xml, '_relationship')
     relationship.text = 'or'
     first = ET.SubElement(criteria_xml, 'NameFirst')
@@ -169,7 +168,7 @@ def name_lookup(api_instance=None, first_name="", last_name=""):
         resident_list = api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
     except ApiException:
         pass
-    
+
     entry_ids = []
     for resident in resident_list:
         entry_ids.append(resident.entry_id)
@@ -219,7 +218,8 @@ class Resident(object):
         custom_def = ET.SubElement(entry_custom_xml, 'CustomFieldDefinitionID')
         custom_def.text = field_id
 
-        custom_field = self.api_instance.search_entry_custom_field_xml(ET.tostring(entry_custom_xml, encoding="unicode"))[0]
+        custom_field = self.api_instance.search_entry_custom_field_xml(ET.tostring(entry_custom_xml,
+                                                                                   encoding="unicode"))[0]
         return custom_field
 
     def get_cell_number(self):
@@ -233,9 +233,10 @@ class Resident(object):
         eid = ET.SubElement(entry_address_xml, 'EntryID')
         eid.text = str(self.id)
         first = ET.SubElement(entry_address_xml, 'AddressTypeID')
-        first.text = "3" # According to the AddressTypeID table this is the 'Student Cell' ID
+        first.text = "3"  # According to the AddressTypeID table this is the 'Student Cell' ID
 
-        resident_cell = self.api_instance.search_entry_address_xml(ET.tostring(entry_address_xml, encoding="unicode"))[0]
+        resident_cell = self.api_instance.search_entry_address_xml(ET.tostring(entry_address_xml,
+                                                                               encoding="unicode"))[0]
         return resident_cell.phone_mobile_cell
 
     def get_gpa(self):
@@ -282,16 +283,16 @@ class Resident(object):
 
         """
 
-        RESIDENT_PROFILE_FIELDS = {"id":"entry_id",
-                                   "principal_name":"name_web",
-                                   "birth_date":"dob",
-                                   "sex":"gender_enum",
-                                   "title":"name_title",
-                                   "first_name":"name_first",
-                                   "preferred_name":"name_preferred",
-                                   "last_name":"name_last",
-                                   "empl_id":"id1",
-                                   "email":"name_web"}
+        RESIDENT_PROFILE_FIELDS = {"id": "entry_id",
+                                   "principal_name": "name_web",
+                                   "birth_date": "dob",
+                                   "sex": "gender_enum",
+                                   "title": "name_title",
+                                   "first_name": "name_first",
+                                   "preferred_name": "name_preferred",
+                                   "last_name": "name_last",
+                                   "empl_id": "id1",
+                                   "email": "name_web"}
 
         ADDITIONAL_RESIDENT_FIELDS = {"cell_phone": self.get_cell_number,
                                       "ethnicity": self.get_ethnicity,
@@ -299,7 +300,7 @@ class Resident(object):
                                       "college": self.get_college,
                                       "major": self.get_major,
                                       "current_gpa": self.get_gpa,
-                                      "course_year": self.get_class_standing }
+                                      "course_year": self.get_class_standing}
 
         self.api_instance = api_instance
         """
@@ -333,7 +334,8 @@ class Resident(object):
         if len(resident_profiles) == 1:
             self.resident_profile = resident_profiles[0]
         else:
-            raise MultipleObjectsReturned("Multiple Residents were found that match the query: " + ET.tostring(entry_xml, encoding="unicode"))
+            raise MultipleObjectsReturned("Multiple Residents were found that match the query: " +
+                                          ET.tostring(entry_xml, encoding="unicode"))
 
         # Populate all available attributes
         for field, SR_key in RESIDENT_PROFILE_FIELDS.items():
