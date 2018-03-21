@@ -31,15 +31,9 @@ class StarRezAuthConnection(StarRezBaseConnection):
     """ Connection to StarRez that uses Basic authentication"""
 
     def __init__(self, host=None, username=None, password=None):
-        try:
-            from django.conf import settings
-        except ImportError:
-            configuration = starrez_client.Configuration()
-            configuration.username = username
-            configuration.password = password
-            configuration.host = host
-            pass
-        else:
-            pass
+        configuration = starrez_client.Configuration()
+        configuration.username = username
+        configuration.password = password
+        configuration.host = host
 
         self.api_instance = starrez_client.DefaultApi(starrez_client.ApiClient(configuration))
