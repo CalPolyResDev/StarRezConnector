@@ -18,17 +18,23 @@ from .exception import ObjectDoesNotExist, MultipleObjectsReturned
 
 logger = logging.getLogger(__name__)
 
+CUSTOM_FIELD_IDS = {"GPA":"5",
+                    "MAJOR":"3",
+                    "COLLEGE":"2" }
 
-def reverse_address_lookup(community="", building="", room="", api_instance=None):
-    """ Retrieve a list of residents corresponding to the passed address parameters. The 'does_not_exist' instance variable is set when a resident with the provided information does not exist.
 
+def reverse_address_lookup(api_instance=None, community="", building="", room=""):
+    """ Retrieve a list of residents corresponding to the passed address parameters.
+
+    :param api_instance: An instance of the StarRezAPI client.
+    :type api_instance: starrez_client.api.default_api.DefaultApi
     :param community: The community by which to filter results.
     :type community: str
     :param building: The building by which to filter results.
     :type building: str
     :param room: The room by which to filter results.
     :type room: str
-    :returns: A list of name_webs
+    :returns: A list of Residents
     :raises: **ObjectDoesNotExist** if no matches can be found using the provided address filters.
 
     """
@@ -39,9 +45,9 @@ def reverse_address_lookup(community="", building="", room="", api_instance=None
     # Build an address string to pass to the API to search RoomSpace table
     address = ""
     address_communities = ["Poly Canyon Village",
-                            "Cerro Vista",
-                            "Sierra Madre",
-                            "Yosemite"]
+                           "Cerro Vista",
+                           "Sierra Madre",
+                           "Yosemite"]
 
     community = community.strip()
     if community in address_communities:
@@ -53,6 +59,11 @@ def reverse_address_lookup(community="", building="", room="", api_instance=None
 
     address = address + building + ", Room " + room
 
+    """
+    <RoomSpace>
+        <Street>address</Street>
+    </RoomSpace>
+    """
     room_space_xml = "<RoomSpace><Street>" + address + "</Street></RoomSpace>"
     rooms = None
     try:
@@ -64,6 +75,16 @@ def reverse_address_lookup(community="", building="", room="", api_instance=None
             print(e)
         raise
     
+    """
+    <Booking>
+        <_relationship>or</_relationship>
+        <RoomSpaceID>id1</RoomSpaceID>
+        <RoomSpaceID>id2</RoomSpaceID>
+        <RoomSpaceID>id3</RoomSpaceID>
+        ...
+        <RoomSpaceID>idn</RoomSpaceID>
+    </Booking>
+    """
     room_space_ids_xml = ""
     for room in rooms:
         room_space_ids_xml = room_space_ids_xml + "<RoomSpaceID>" + str(room.room_space_id) + "</RoomSpaceID>"
@@ -84,7 +105,6 @@ def reverse_address_lookup(community="", building="", room="", api_instance=None
         if booking.entry_status_enum == "InRoom":
             entry_ids.append(booking.entry_id)
 
-
     def add_resident_from_room_booking(entry_id):
         try:
             return Resident(api_instance=api_instance, entry_id=entry_id)
@@ -102,29 +122,146 @@ def reverse_address_lookup(community="", building="", room="", api_instance=None
         return residents
 
 
+def name_lookup(api_instance=None, first_name="", last_name=""):
+    """ Retrieve a list of residents corresponding to the passed in name parameters. 
+    The first_name parameter is checked against first name and preferred name.
+
+    :param api_instance: An instance of the StarRezAPI client.
+    :type api_instance: starrez_client.api.default_api.DefaultApi
+    :param first_name: The first name by which to filter results.
+    :type first_name: str
+    :param last_name: The last name by which to filter results.
+    :type last_name: str
+    :returns: A list of Residents
+    :raises: **ObjectDoesNotExist** if no matches can be found using the provided address filters.
+
+    """
+
+
+    """
+    The xml for this request looks like this. The _criteria field allows for the
+    _relationship field to be applied to only the other fields in the _criteria.
+    The default _relationship is 'and', which is why there is only the one 
+    _relationship field.
+
+    <Entry>
+        <_criteria>
+            <_relationship>or</_relationship>
+            <NameFirst>first_name</NameFirst>
+            <NamePreferred>first_name</NamePreferred>
+        </_criteria>
+        <NameLast>last_name</NameLast>
+    </Entry>
+    """
+    entry_xml = ET.Element('Entry')
+    criteria_xml = ET.SubElement(entry_xml, '_criteria')
+    
+    relationship = ET.SubElement(criteria_xml, '_relationship')
+    relationship.text = 'or'
+    first = ET.SubElement(criteria_xml, 'NameFirst')
+    first.text = first_name
+    preferred = ET.SubElement(criteria_xml, 'NamePreferred')
+    preferred.text = first_name
+    last = ET.SubElement(entry_xml, 'NameLast')
+    last.text = last_name
+
+    try:
+        resident_list = api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
+    except ApiException:
+        pass
+    
+    entry_ids = []
+    for resident in resident_list:
+        entry_ids.append(resident.entry_id)
+
+    def add_resident_from_name(entry_id):
+        try:
+            return Resident(api_instance=api_instance, entry_id=entry_id)
+        except ObjectDoesNotExist:
+            pass
+
+    with ThreadPoolExecutor(max_workers=50) as pool:
+        residents = list(pool.map(add_resident_from_name, entry_ids))
+
+    residents = [resident for resident in residents if resident is not None]
+
+    if len(residents) == 0:
+        raise ObjectDoesNotExist("The reverse address lookup returned zero results.")
+    else:
+        return residents
+
+
 class Resident(object):
     """Retrieves and contains resident information."""
 
-    RESIDENT_PROFILE_FIELDS = {"id":"entry_id",
-                               "principal_name":"name_web",
-                               "birth_date":"dob",
-                               "sex":"gender_enum",
-                               "title":"name_title",
-                               "first_name":"name_first",
-                               "preferred_name":"name_preferred",
-                               "last_name":"name_last",
-                               "empl_id":"id1",
-                               "email":"name_web"
-                               # "":"full_name",
-                               }
+    def get_entry_details(self):
+        """
+        <EntryDetail>
+            <EntryID>self.id</EntryID>
+        </EntryDetail>
+        """
+        entry_details_xml = ET.Element('EntryDetail')
+        eid = ET.SubElement(entry_details_xml, 'EntryID')
+        eid.text = str(self.id)
 
-    STUDENT_PROFILE_FIELDS = ["cell_phone"
-                              "ethnicity",
-                              "nationality",
-                              "college",
-                              "major",
-                              "current_gpa",
-                              "course_year"]
+        return self.api_instance.search_entry_detail_xml(ET.tostring(entry_details_xml, encoding="unicode"))[0]
+
+    def get_custom_field(self, field_id):
+        """
+        <EntryCustomField>
+            <EntryID>self.id</EntryID>
+            <CustomFieldDefinitionID>field_id</CustomFieldDefinitionID>
+        </EntryCustomField>
+        """
+        entry_custom_xml = ET.Element('EntryCustomField')
+        eid = ET.SubElement(entry_custom_xml, 'EntryID')
+        eid.text = str(self.id)
+        custom_def = ET.SubElement(entry_custom_xml, 'CustomFieldDefinitionID')
+        custom_def.text = field_id
+
+        custom_field = self.api_instance.search_entry_custom_field_xml(ET.tostring(entry_custom_xml, encoding="unicode"))[0]
+        return custom_field
+
+    def get_cell_number(self):
+        """
+        <EntryAddress>
+            <EntryID>self.id</EntryID>
+            <AddressTypeID>3</AddressTypeID>
+        </EntryAddress>
+        """
+        entry_address_xml = ET.Element('EntryAddress')
+        eid = ET.SubElement(entry_address_xml, 'EntryID')
+        eid.text = str(self.id)
+        first = ET.SubElement(entry_address_xml, 'AddressTypeID')
+        first.text = "3" # According to the AddressTypeID table this is the 'Student Cell' ID
+
+        resident_cell = self.api_instance.search_entry_address_xml(ET.tostring(entry_address_xml, encoding="unicode"))[0]
+        return resident_cell.phone_mobile_cell
+
+    def get_gpa(self):
+        resident_gpa = self.get_custom_field(CUSTOM_FIELD_IDS["GPA"])
+        return resident_gpa.value_money
+
+    def get_ethnicity(self):
+        resident_details = self.get_entry_details()
+        return resident_details.ethnicity
+
+    def get_nationality(self):
+        resident_details = self.get_entry_details()
+        nationality = self.api_instance.search_nationality(nationality_id=resident_details.nationality_id)[0]
+        return nationality.description if nationality.description != '(Please Select Nationality)' else ''
+
+    def get_college(self):
+        resident_college = self.get_custom_field(CUSTOM_FIELD_IDS["COLLEGE"])
+        return resident_college.value_string
+
+    def get_major(self):
+        resident_major = self.get_custom_field(CUSTOM_FIELD_IDS["MAJOR"])
+        return resident_major.value_string
+
+    def get_class_standing(self):
+        resident_details = self.get_entry_details()
+        return resident_details.enrollment_class
 
     def __str__(self):
         return self.principal_name
@@ -132,54 +269,83 @@ class Resident(object):
     def __repr__(self):
         return "<Resident " + str(self) + ">"
 
-    def __init__(self, api_instance=None, name_web=None, term_code=None, entry_id=None):
+    def __init__(self, api_instance=None, name_web=None, entry_id=None):
         """
 
+        :param api_instance: An instance of the StarRezAPI client.
+        :type api_instance: starrez_client.api.default_api.DefaultApi
         :param name_web: The prinicipal name of the user, typically an email address.
         :type name_web: str
-        :param term_code: The term code to set for housing lookups. Default is the current term code.
-        :type term_code: int
-        :param application_term_string: The term string used to check for valid housing applications. Default is the term string for Fall, "FA"
-        :type application_term_string: string
-        :param room_booking: Optional. If this argument is supplied, the other two are ignored.
-        :type room_booking: RoomBooking
+        :param entry_id: Optional. If this argument is supplied, the name_web is ignored.
+        :type entry_id: int
         :raises: **ObjectDoesNotExist** if no matches can be found using the provided alias.
 
         """
 
+        RESIDENT_PROFILE_FIELDS = {"id":"entry_id",
+                                   "principal_name":"name_web",
+                                   "birth_date":"dob",
+                                   "sex":"gender_enum",
+                                   "title":"name_title",
+                                   "first_name":"name_first",
+                                   "preferred_name":"name_preferred",
+                                   "last_name":"name_last",
+                                   "empl_id":"id1",
+                                   "email":"name_web"}
+
+        ADDITIONAL_RESIDENT_FIELDS = {"cell_phone": self.get_cell_number,
+                                      "ethnicity": self.get_ethnicity,
+                                      "nationality": self.get_nationality,
+                                      "college": self.get_college,
+                                      "major": self.get_major,
+                                      "current_gpa": self.get_gpa,
+                                      "course_year": self.get_class_standing }
+
+        self.api_instance = api_instance
+        """
+        <Entry>
+            <EntryID>entry_id</EntryID>
+        </Entry>
+        or
+        <Entry>
+            <NameWeb>name_web</NameWeb>
+        </Entry>
+        """
         entry_xml = ET.Element('Entry')
 
         if not entry_id:
             pname = ET.SubElement(entry_xml, 'NameWeb')
             pname.text = name_web
-
-            """if not term_code:
-                term_code = get_current_term()
-            try:
-                self.resident_profile = ResidentProfile.objects.get(student_address__email=name_web)
-            except ResidentProfile.DoesNotExist:
-                raise ObjectDoesNotExist("A resident profile couldn't be found for {principal_name}".format(principal_name=name_web))
-
-            self.room_booking = self.resident_profile.get_current_room_booking(term_code)"""
         else:
             eid = ET.SubElement(entry_xml, "EntryID")
             eid.text = str(entry_id)
 
-        resident_profiles = api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
+        try:
+            resident_profiles = api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
+        except ApiException:
+            error = ""
+            if entry_id:
+                error = "EntryID: " + str(entry_id)
+            else:
+                error = "NameWeb: " + name_web
+            raise ObjectDoesNotExist("A resident profile couldn't be found for " + error)
+
         if len(resident_profiles) == 1:
             self.resident_profile = resident_profiles[0]
         else:
             raise MultipleObjectsReturned("Multiple Residents were found that match the query: " + ET.tostring(entry_xml, encoding="unicode"))
 
         # Populate all available attributes
-        for field, SR_key in self.RESIDENT_PROFILE_FIELDS.items():
+        for field, SR_key in RESIDENT_PROFILE_FIELDS.items():
             setattr(self, field, getattr(self.resident_profile, SR_key))
 
         self.full_name = " ".join([self.title, self.preferred_name, self.last_name])
 
-"""        for field in self.STUDENT_PROFILE_FIELDS:
-            setattr(self, field, getattr(self.resident_profile.student_profile, field))
+        for field, func in ADDITIONAL_RESIDENT_FIELDS.items():
+            setattr(self, field, func())
 
+    # TODO: Convert the remaining functionality to use StarRez
+    """
         # Housing Application data
         self.student_applications = self.resident_profile.student_applications.all()
         self.valid_student_applications = self.student_applications.filter(application_cancel_date__exact=None).exclude(offer_received__exact=None)
