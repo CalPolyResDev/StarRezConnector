@@ -26,6 +26,7 @@ class StarRezBaseConnection(object):
     def full_name_lookup(self, first_name="", last_name=""):
         return name_lookup(self.api_instance, first_name, last_name)
 
+
 class StarRezAuthConnection(StarRezBaseConnection):
     """ Connection to StarRez that uses Basic authentication"""
 

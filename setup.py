@@ -32,6 +32,7 @@ class MetadataFinder(ast.NodeVisitor):
         elif node.targets[0].id == '__license__':
             self.license = node.value.s
 
+
 with open(os.path.join('starrezconnector', '__init__.py')) as open_file:
     finder = MetadataFinder()
     finder.visit(ast.parse(open_file.read()))

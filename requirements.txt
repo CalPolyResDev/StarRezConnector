@@ -1,1 +1,4 @@
-git+https://github.com/CalPolyResDev/StarRezAPI.git
+--index-url https://pypi.python.org/simple/
+
+-e git+https://github.com/CalPolyResDev/StarRezAPI.git
+-e .
