@@ -40,7 +40,7 @@ with open(os.path.join('starrezconnector', '__init__.py')) as open_file:
 readme = open('README.rst').read()
 changes = open('CHANGES.rst').read().replace('.. :changelog:', '')
 
-INSTALL_REQUIRES = []
+INSTALL_REQUIRES = [starrez_client]
 
 setup(
     name=finder.title,
