@@ -81,22 +81,32 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
 
     """
     <Booking>
-        <_relationship>or</_relationship>
-        <RoomSpaceID>id1</RoomSpaceID>
-        <RoomSpaceID>id2</RoomSpaceID>
-        <RoomSpaceID>id3</RoomSpaceID>
-        ...
-        <RoomSpaceID>idn</RoomSpaceID>
+        <_criteria>
+            <_relationship>or</_relationship>
+            <RoomSpaceID>id1</RoomSpaceID>
+            <RoomSpaceID>id2</RoomSpaceID>
+            <RoomSpaceID>id3</RoomSpaceID>
+            ...
+            <RoomSpaceID>idn</RoomSpaceID>
+        </_criteria>
+        <EntryStatusEnum>InRoom</EntryStatusEnum>
     </Booking>
     """
-    room_space_ids_xml = ""
-    for room in rooms:
-        room_space_ids_xml += "<RoomSpaceID>" + str(room.room_space_id) + "</RoomSpaceID>"
+    bookings_xml = ET.Element("Booking")
+    criteria_xml = ET.SubElement(bookings_xml, "_criteria")
+    relationship = ET.SubElement(criteria_xml, '_relationship')
+    relationship.text = 'or'
 
-    bookings_xml = "<Booking><_relationship>or</_relationship>" + room_space_ids_xml + "</Booking>"
+    for room in rooms:
+        room_space_ids_xml = ET.SubElement(criteria_xml, "RoomSpaceID")
+        room_space_ids_xml.text = str(room.room_space_id)
+
+    entry_status = ET.SubElement(bookings_xml, "EntryStatusEnum")
+    entry_status.text = "InRoom"
     bookings = None
     try:
-        bookings = api_instance.search_booking_xml(bookings_xml)
+        print(ET.tostring(bookings_xml, encoding="unicode"))
+        bookings = api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))
     except ApiException as e:
         if e.body:
             print(e.body)
@@ -106,8 +116,7 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
 
     entry_ids = []
     for booking in bookings:
-        if booking.entry_status_enum == "InRoom":
-            entry_ids.append(booking.entry_id)
+        entry_ids.append(booking.entry_id)
 
     def add_resident_from_room_booking(entry_id):
         try:
@@ -270,6 +279,9 @@ class Resident(object):
         resident_details = self.get_entry_details()
         return resident_details.enrollment_class
 
+    def get_address(self):
+        pass
+
     def __str__(self):
         return self.principal_name
 
@@ -353,11 +365,9 @@ class Resident(object):
         for field, func in ADDITIONAL_RESIDENT_FIELDS.items():
             setattr(self, field, func())
 
-    # TODO: Convert the remaining functionality to use StarRez
-    """
         # Housing Application data
-        self.student_applications = self.resident_profile.student_applications.all()
-        self.valid_student_applications = self.student_applications.filter(application_cancel_date__exact=None).exclude(offer_received__exact=None)
+        # self.student_applications = self.resident_profile.student_applications.all()
+        # self.valid_student_applications = self.student_applications.filter(application_cancel_date__exact=None).exclude(offer_received__exact=None)
 
         # Room booking data
         if self.room_booking:
@@ -375,6 +385,8 @@ class Resident(object):
         self.dorm_phone = None
         self.booking_term_type = None
 
+    # TODO: Convert the remaining functionality to use StarRez
+    """
     def current_and_valid_application(self, application_term='FA', application_year=None):
         current_and_valid_applications = [student_application for student_application in self.valid_student_applications if student_application.is_current(term=application_term, year=application_year)]
 
@@ -390,4 +402,4 @@ class Resident(object):
     def application_term_type(self, application_term='FA', application_year=None):
         application = self.current_and_valid_application(application_term, application_year)
         return application.term_type if application else None
-"""
+    """
