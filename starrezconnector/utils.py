@@ -280,6 +280,7 @@ class Resident(object):
         return resident_details.enrollment_class
 
     def get_address(self):
+        # TODO: Implement code to get the address
         pass
 
     def get_buckley(self):
