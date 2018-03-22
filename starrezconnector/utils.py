@@ -57,7 +57,8 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
             address = community
         address = address + ", "
 
-    address = address + building + ", Room " + room
+    room_str = ", Room " + room if room != "" else ""
+    address = address + building + room_str
 
     """
     The "c" operator checks if the field contains the value. If the room is not specified
@@ -105,7 +106,6 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
     entry_status.text = "InRoom"
     bookings = None
     try:
-        print(ET.tostring(bookings_xml, encoding="unicode"))
         bookings = api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))
     except ApiException as e:
         if e.body:
@@ -370,20 +370,10 @@ class Resident(object):
         # self.valid_student_applications = self.student_applications.filter(application_cancel_date__exact=None).exclude(offer_received__exact=None)
 
         # Room booking data
-        if self.room_booking:
-            try:
-                self.address_dict = self.room_booking.full_address
-                self.address = self.address_dict['community'] + " - " + self.address_dict['building'] + " " + self.address_dict['room']
-                self.dorm_phone = self.room_booking.latest_room_configuration.phone_extension
-                self.booking_term_type = self.room_booking.term.term_type
-                return
-            except UnsupportedCommunityException:
-                pass
-
-        self.address_dict = {'community': None, 'building': None, 'room': None}
-        self.address = None
-        self.dorm_phone = None
-        self.booking_term_type = None
+        self.address_dict = {'community': "", 'building': "", 'room': ""}
+        self.address = self.address_dict['community'] + " - " + self.address_dict['building'] + " " + self.address_dict['room']
+        self.dorm_phone = ""  # self.room_booking.latest_room_configuration.phone_extension
+        self.booking_term_type = ""  # self.room_booking.term.term_type
 
     # TODO: Convert the remaining functionality to use StarRez
     """
