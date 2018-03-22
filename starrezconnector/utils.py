@@ -282,6 +282,10 @@ class Resident(object):
     def get_address(self):
         pass
 
+    def get_buckley(self):
+        # TODO: Implement code to actually get the flag
+        return False
+
     def __str__(self):
         return self.principal_name
 
@@ -318,7 +322,8 @@ class Resident(object):
                                       "college": self.get_college,
                                       "major": self.get_major,
                                       "current_gpa": self.get_gpa,
-                                      "course_year": self.get_class_standing}
+                                      "course_year": self.get_class_standing,
+                                      "is_buckley": self.get_buckley}
 
         self.api_instance = api_instance
         """
@@ -373,7 +378,6 @@ class Resident(object):
         self.address_dict = {'community': "", 'building': "", 'room': ""}
         self.address = self.address_dict['community'] + " - " + self.address_dict['building'] + " " + self.address_dict['room']
         self.dorm_phone = ""  # self.room_booking.latest_room_configuration.phone_extension
-        self.booking_term_type = ""  # self.room_booking.term.term_type
 
     # TODO: Convert the remaining functionality to use StarRez
     """
