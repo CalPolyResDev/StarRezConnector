@@ -60,11 +60,15 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
     address = address + building + ", Room " + room
 
     """
+    The "c" operator checks if the field contains the value. If the room is not specified
+    this will return all of the rooms in the building. If the room is specified then only
+    that room will be returned.
+
     <RoomSpace>
-        <Street>address</Street>
+        <Street _operator="c">address</Street>
     </RoomSpace>
     """
-    room_space_xml = "<RoomSpace><Street>" + address + "</Street></RoomSpace>"
+    room_space_xml = '<RoomSpace><Street _operator="c">' + address + '</Street></RoomSpace>'
     rooms = None
     try:
         rooms = api_instance.search_room_space_xml(room_space_xml)
@@ -87,7 +91,7 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
     """
     room_space_ids_xml = ""
     for room in rooms:
-        room_space_ids_xml = room_space_ids_xml + "<RoomSpaceID>" + str(room.room_space_id) + "</RoomSpaceID>"
+        room_space_ids_xml += "<RoomSpaceID>" + str(room.room_space_id) + "</RoomSpaceID>"
 
     bookings_xml = "<Booking><_relationship>or</_relationship>" + room_space_ids_xml + "</Booking>"
     bookings = None
@@ -203,7 +207,8 @@ class Resident(object):
         eid = ET.SubElement(entry_details_xml, 'EntryID')
         eid.text = str(self.id)
 
-        return self.api_instance.search_entry_detail_xml(ET.tostring(entry_details_xml, encoding="unicode"))[0]
+        return self.api_instance.search_entry_detail_xml(ET.tostring(entry_details_xml,
+                                                                     encoding="unicode"))[0]
 
     def get_custom_field(self, field_id):
         """
@@ -218,8 +223,8 @@ class Resident(object):
         custom_def = ET.SubElement(entry_custom_xml, 'CustomFieldDefinitionID')
         custom_def.text = field_id
 
-        custom_field = self.api_instance.search_entry_custom_field_xml(ET.tostring(entry_custom_xml,
-                                                                                   encoding="unicode"))[0]
+        custom_field = self.api_instance.search_entry_custom_field_xml(
+                            ET.tostring(entry_custom_xml, encoding="unicode"))[0]
         return custom_field
 
     def get_cell_number(self):
@@ -235,8 +240,8 @@ class Resident(object):
         first = ET.SubElement(entry_address_xml, 'AddressTypeID')
         first.text = "3"  # According to the AddressTypeID table this is the 'Student Cell' ID
 
-        resident_cell = self.api_instance.search_entry_address_xml(ET.tostring(entry_address_xml,
-                                                                               encoding="unicode"))[0]
+        resident_cell = self.api_instance.search_entry_address_xml(
+                             ET.tostring(entry_address_xml, encoding="unicode"))[0]
         return resident_cell.phone_mobile_cell
 
     def get_gpa(self):
@@ -249,7 +254,8 @@ class Resident(object):
 
     def get_nationality(self):
         resident_details = self.get_entry_details()
-        nationality = self.api_instance.search_nationality(nationality_id=resident_details.nationality_id)[0]
+        nationality = self.api_instance.search_nationality(
+                           nationality_id=resident_details.nationality_id)[0]
         return nationality.description if nationality.description != '(Please Select Nationality)' else ''
 
     def get_college(self):
@@ -322,7 +328,8 @@ class Resident(object):
             eid.text = str(entry_id)
 
         try:
-            resident_profiles = api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
+            resident_profiles = api_instance.search_entry_xml(ET.tostring(entry_xml,
+                                                                          encoding="unicode"))
         except ApiException:
             error = ""
             if entry_id:
