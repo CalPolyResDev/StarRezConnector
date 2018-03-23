@@ -296,7 +296,7 @@ class Resident(object):
 
         """
         <RoomSpace>
-            <RoomSpaceID>address</RoomSpaceID>
+            <RoomSpaceID>RoomSpaceID</RoomSpaceID>
         </RoomSpace>
         """
         rooms_xml = ET.Element("RoomSpace")
@@ -365,6 +365,8 @@ class Resident(object):
         </Entry>
         """
         entry_xml = ET.Element('Entry')
+        status = ET.SubElement(entry_xml, 'EntryStatusEnum')
+        status.text = 'InRoom'
 
         if not entry_id:
             pname = ET.SubElement(entry_xml, 'NameWeb')
@@ -382,7 +384,8 @@ class Resident(object):
                 error = "EntryID: " + str(entry_id)
             else:
                 error = "NameWeb: " + name_web
-            raise ObjectDoesNotExist("A resident profile couldn't be found for " + error)
+            raise ObjectDoesNotExist("The user either isn't a resident or doesn't have a profile "
+                                     + error)
 
         if len(resident_profiles) == 1:
             self.resident_profile = resident_profiles[0]
@@ -398,7 +401,7 @@ class Resident(object):
             setattr(self, field, func())
 
         self.full_name = " ".join([self.title, self.preferred_name, self.last_name])
-        self.is_buckley = self.resident_profile.directory_flag_privacy == "true"
+        self.is_buckley = self.resident_profile.directory_flag_privacy
 
         # Room booking data
         self.address_dict = {'community': "", 'building': "", 'room': ""}
