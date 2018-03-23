@@ -280,12 +280,40 @@ class Resident(object):
         return resident_details.enrollment_class
 
     def get_address(self):
-        # TODO: Implement code to get the address
-        pass
+        """
+        <Booking>
+            <EntryID>self.id</EntryID>
+            <EntryStatusEnum>InRoom</EntryStatusEnum>
+        </Booking>
+        """
+        bookings_xml = ET.Element("Booking")
+        eid = ET.SubElement(bookings_xml, 'EntryID')
+        eid.text = str(self.id)
+        entry_status = ET.SubElement(bookings_xml, "EntryStatusEnum")
+        entry_status.text = "InRoom"
 
-    def get_buckley(self):
-        # TODO: Implement code to actually get the flag
-        return False
+        booking = api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))[0]
+
+        """
+        <RoomSpace>
+            <RoomSpaceID>address</RoomSpaceID>
+        </RoomSpace>
+        """
+        rooms_xml = ET.Element("RoomSpace")
+        rid = ET.SubElement(rooms_xml, 'RoomSpaceID')
+        rid.text = str(booking.room_space_id)
+
+        room = api_instance.search_room_space_xml(ET.tostring(bookings_xml, encoding="unicode"))[0]
+        return room.street.strip()
+
+    def init_address_dict(self):
+        addr_list = self.address.split(",")
+
+        community = addr_list[0].split(" Hall")[0].strip()
+        building = addr_list[1].strip()
+        room = addr_list[2].split("Room")[1].strip()
+
+        return {'community': community, 'building': building, 'room': room}
 
     def __str__(self):
         return self.principal_name
@@ -324,7 +352,7 @@ class Resident(object):
                                       "major": self.get_major,
                                       "current_gpa": self.get_gpa,
                                       "course_year": self.get_class_standing,
-                                      "is_buckley": self.get_buckley}
+                                      "address": self.get_address}
 
         self.api_instance = api_instance
         """
@@ -366,35 +394,11 @@ class Resident(object):
         for field, SR_key in RESIDENT_PROFILE_FIELDS.items():
             setattr(self, field, getattr(self.resident_profile, SR_key))
 
-        self.full_name = " ".join([self.title, self.preferred_name, self.last_name])
-
         for field, func in ADDITIONAL_RESIDENT_FIELDS.items():
             setattr(self, field, func())
 
-        # Housing Application data
-        # self.student_applications = self.resident_profile.student_applications.all()
-        # self.valid_student_applications = self.student_applications.filter(application_cancel_date__exact=None).exclude(offer_received__exact=None)
+        self.full_name = " ".join([self.title, self.preferred_name, self.last_name])
+        self.is_buckley = self.resident_profile.directory_flag_privacy == "true"
 
         # Room booking data
         self.address_dict = {'community': "", 'building': "", 'room': ""}
-        self.address = self.address_dict['community'] + " - " + self.address_dict['building'] + " " + self.address_dict['room']
-        self.dorm_phone = ""  # self.room_booking.latest_room_configuration.phone_extension
-
-    # TODO: Convert the remaining functionality to use StarRez
-    """
-    def current_and_valid_application(self, application_term='FA', application_year=None):
-        current_and_valid_applications = [student_application for student_application in self.valid_student_applications if student_application.is_current(term=application_term, year=application_year)]
-
-        if current_and_valid_applications:
-            assert len(current_and_valid_applications) == 1
-            return current_and_valid_applications[0]
-        else:
-            return None
-
-    def has_current_and_valid_application(self, application_term='FA', application_year=None):
-        return self.current_and_valid_application(application_term, application_year) is not None
-
-    def application_term_type(self, application_term='FA', application_year=None):
-        application = self.current_and_valid_application(application_term, application_year)
-        return application.term_type if application else None
-    """
