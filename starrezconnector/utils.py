@@ -292,7 +292,7 @@ class Resident(object):
         entry_status = ET.SubElement(bookings_xml, "EntryStatusEnum")
         entry_status.text = "InRoom"
 
-        booking = api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))[0]
+        booking = self.api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))[0]
 
         """
         <RoomSpace>
@@ -303,7 +303,7 @@ class Resident(object):
         rid = ET.SubElement(rooms_xml, 'RoomSpaceID')
         rid.text = str(booking.room_space_id)
 
-        room = api_instance.search_room_space_xml(ET.tostring(bookings_xml, encoding="unicode"))[0]
+        room = self.api_instance.search_room_space_xml(ET.tostring(rooms_xml, encoding="unicode"))[0]
         return room.street.strip()
 
     def init_address_dict(self):

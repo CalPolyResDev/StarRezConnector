@@ -10,7 +10,7 @@ __title__ = "starrezconnector"
 __summary__ = "A tool to connect to and gather data from the StarRez API."
 __uri__ = ""
 
-__version__ = "1.0.0.beta.6"
+__version__ = "1.0.0.beta.7"
 
 __author__ = "Cal Poly ResDev"
 __email__ = "resdev@calpoly.edu"
