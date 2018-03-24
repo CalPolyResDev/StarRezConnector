@@ -14,7 +14,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import date
 from starrez_client.rest import ApiException
 
-from .exception import ObjectDoesNotExist, MultipleObjectsReturned
+from .exceptions import ObjectDoesNotExist, MultipleObjectsReturned, UnsupportedCommunityException
 
 logger = logging.getLogger(__name__)
 
@@ -70,15 +70,12 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
     </RoomSpace>
     """
     room_space_xml = '<RoomSpace><Street _operator="c">' + address + '</Street></RoomSpace>'
-    rooms = None
+    rooms = []
     try:
-        rooms = api_instance.search_room_space_xml(room_space_xml)
+        rooms += api_instance.search_room_space_xml(room_space_xml)
     except ApiException as e:
-        if e.body:
-            print(e.body)
-        else:
-            print(e)
-        raise
+        raise UnsupportedCommunityException("The community in which this resident resides ("
+                                            + community + ") is not supported.")
 
     """
     <Booking>
@@ -104,9 +101,9 @@ def reverse_address_lookup(api_instance=None, community="", building="", room=""
 
     entry_status = ET.SubElement(bookings_xml, "EntryStatusEnum")
     entry_status.text = "InRoom"
-    bookings = None
+    bookings = []
     try:
-        bookings = api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))
+        bookings += api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))
     except ApiException as e:
         if e.body:
             print(e.body)
@@ -177,8 +174,9 @@ def name_lookup(api_instance=None, first_name="", last_name=""):
     last = ET.SubElement(entry_xml, 'NameLast')
     last.text = last_name
 
+    resident_list = []
     try:
-        resident_list = api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
+        resident_list += api_instance.search_entry_xml(ET.tostring(entry_xml, encoding="unicode"))
     except ApiException:
         pass
 
@@ -198,7 +196,7 @@ def name_lookup(api_instance=None, first_name="", last_name=""):
     residents = [resident for resident in residents if resident is not None]
 
     if len(residents) == 0:
-        raise ObjectDoesNotExist("The reverse address lookup returned zero results.")
+        raise ObjectDoesNotExist("The name lookup returned zero results.")
     else:
         return residents
 
@@ -292,7 +290,8 @@ class Resident(object):
         entry_status = ET.SubElement(bookings_xml, "EntryStatusEnum")
         entry_status.text = "InRoom"
 
-        booking = self.api_instance.search_booking_xml(ET.tostring(bookings_xml, encoding="unicode"))[0]
+        booking = self.api_instance.search_booking_xml(ET.tostring(bookings_xml,
+                                                                   encoding="unicode"))[0]
 
         """
         <RoomSpace>
@@ -303,7 +302,8 @@ class Resident(object):
         rid = ET.SubElement(rooms_xml, 'RoomSpaceID')
         rid.text = str(booking.room_space_id)
 
-        room = self.api_instance.search_room_space_xml(ET.tostring(rooms_xml, encoding="unicode"))[0]
+        room = self.api_instance.search_room_space_xml(ET.tostring(rooms_xml,
+                                                                   encoding="unicode"))[0]
         return room.street.strip()
 
     def init_address_dict(self):
