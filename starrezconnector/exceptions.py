@@ -1,5 +1,5 @@
 """
-.. module:: starrezconnector.exception
+.. module:: starrezconnector.exceptions
     :synopsis: The StarRezConnector Exceptions
 
 .. moduleauthor:: Kyle Reis (@fedorareis)

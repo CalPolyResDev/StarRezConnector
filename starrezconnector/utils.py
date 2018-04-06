@@ -11,7 +11,6 @@ import starrez_client
 import xml.etree.ElementTree as ET
 
 from concurrent.futures.thread import ThreadPoolExecutor
-from datetime import date
 from starrez_client.rest import ApiException
 
 from .exceptions import ObjectDoesNotExist, MultipleObjectsReturned, UnsupportedCommunityException
